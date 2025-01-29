@@ -47,12 +47,14 @@ def read_qrels(file_path):
         list: A list of tuples containing query ID, iteration, document ID, and relevance.
     """
     qrels = []
-    with open(file_path, 'r', encoding='utf-8') as file:
+    with open(file_path, 'r') as file:
         for line in file:
             parts = line.strip().split()
-            if len(parts) == 4:
-                query_id, iteration, doc_id, relevance = parts
-                qrels.append((int(query_id), int(iteration), int(doc_id), int(relevance)))
+            if len(parts) != 4:
+                continue
+            query_id, iteration, doc_id, relevance = parts
+            # Append the IDs as strings instead of converting to integers
+            qrels.append((query_id, iteration, doc_id, int(relevance)))
     return qrels
 
 def read_id2url(file_path):
@@ -135,8 +137,8 @@ def process_qrels_file(qrels_file_path, db_path, map_ids_db_path, output_folder)
         new_doc_id = get_new_doc_id(doc_id, id2url, map_ids_db_path)
         if new_query_id is not None and new_doc_id is not None:
             processed_qrels.append((new_query_id, iteration, new_doc_id, relevance))
-        else:
-            processed_qrels.append((query_id, iteration, doc_id, relevance))  # Keep original if no match found
+        # else:
+        #     processed_qrels.append((query_id, iteration, doc_id, relevance))  # Keep original if no match found
 
     output_file_path = os.path.join(output_folder, folder_name, 'qrels_processed.txt')
     os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
