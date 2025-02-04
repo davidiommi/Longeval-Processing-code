@@ -31,6 +31,7 @@ Script Overview:
 
 import os
 import json
+import gzip
 import sqlite3
 import glob
 import argparse
@@ -59,16 +60,20 @@ def read_qrels(file_path):
 
 def read_id2url(file_path):
     """
-    Reads the id2url.json file and parses its content.
+    Reads the id2url.json or id2url.json.gz file and parses its content.
 
     Args:
-        file_path (str): The path to the id2url.json file.
+        file_path (str): The path to the id2url.json or id2url.json.gz file.
 
     Returns:
         dict: A dictionary mapping docids to URLs.
     """
-    with open(file_path, 'r', encoding='utf-8') as file:
-        return json.load(file)
+    if file_path.endswith('.gz'):
+        with gzip.open(file_path, 'rt', encoding='utf-8') as file:
+            return json.load(file)
+    else:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            return json.load(file)
 
 def get_new_query_id(old_id, folder_name, db_path):
     """
@@ -128,8 +133,13 @@ def process_qrels_file(qrels_file_path, db_path, map_ids_db_path, output_folder)
     """
     folder_name = os.path.basename(os.path.dirname(qrels_file_path))
     qrels = read_qrels(qrels_file_path)
+
     id2url_path = os.path.join(os.path.dirname(qrels_file_path), 'id2url.json')
+    if not os.path.exists(id2url_path):
+        id2url_path = os.path.join(os.path.dirname(qrels_file_path), 'id2url.json.gz')
+
     id2url = read_id2url(id2url_path)
+
     processed_qrels = []
 
     for query_id, iteration, doc_id, relevance in tqdm(qrels, desc=f"Processing {os.path.basename(qrels_file_path)}"):
@@ -137,8 +147,6 @@ def process_qrels_file(qrels_file_path, db_path, map_ids_db_path, output_folder)
         new_doc_id = get_new_doc_id(doc_id, id2url, map_ids_db_path)
         if new_query_id is not None and new_doc_id is not None:
             processed_qrels.append((new_query_id, iteration, new_doc_id, relevance))
-        # else:
-        #     processed_qrels.append((query_id, iteration, doc_id, relevance))  # Keep original if no match found
 
     output_file_path = os.path.join(output_folder, folder_name, 'qrels_processed.txt')
     os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
