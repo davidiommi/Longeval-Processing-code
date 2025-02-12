@@ -1,6 +1,7 @@
 import sqlite3
 import argparse
 import json
+import os
 
 # This script inspects the structure of an SQLite database and retrieves a specific record based on the provided ID.
 
@@ -68,22 +69,51 @@ def get_record_by_id(db_path, record_id):
     Returns:
         dict: A dictionary containing the record's information.
     """
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, url, last_updated_at, date FROM mapping WHERE id = ?", (record_id,))
-    row = cursor.fetchone()
-    conn.close()
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, url, last_updated_at, date FROM mapping WHERE id = ?", (record_id,))
+        row = cursor.fetchone()
+        conn.close()
 
-    if row:
-        info = {
-            'id': row[0],
-            'url': row[1],
-            'last_updated_at': json.loads(row[2]),
-            'date': json.loads(row[3])
-        }
-        return info
-    else:
+        if row:
+            info = {
+                'id': row[0],
+                'url': row[1],
+                'last_updated_at': json.loads(row[2]),
+                'date': json.loads(row[3])
+            }
+            return info
+        else:
+            return None
+    except sqlite3.OperationalError as e:
+        if "no such table: mapping" in str(e):
+            print("Table 'mapping' does not exist in the database. Trying to read from 'queries.json'...")
+            return get_record_from_json('queries.json', record_id)
+        else:
+            raise
+
+def get_record_from_json(json_path, record_id):
+    """
+    Retrieves a specific record from the JSON file based on the ID.
+
+    Args:
+        json_path (str): The path to the JSON file.
+        record_id (int): The ID of the record to retrieve.
+
+    Returns:
+        dict: A dictionary containing the record's information.
+    """
+    if not os.path.exists(json_path):
+        print(f"JSON file '{json_path}' does not exist.")
         return None
+
+    with open(json_path, 'r') as file:
+        data = json.load(file)
+        for item in data:
+            if item['id'] == record_id:
+                return item
+    return None
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Inspect the structure of the SQLite database and retrieve a specific record by ID.")
